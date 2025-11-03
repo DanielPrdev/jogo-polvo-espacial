@@ -25,7 +25,7 @@
         justify-content: center;
         min-height: 100vh;
         font-family: Arial, Helvetica, sans-serif;
-        /* REMOVIDO: overflow: hidden; */
+        
     }
 
     
@@ -175,11 +175,9 @@
             <strong>Setas:</strong> Mover o polvo<br>
             <strong>Espaço:</strong> Atirar (3 tiros simultâneos)<br>
             <strong>Enter:</strong> Pausar/Continuar jogo<br>
-            <strong>Objetivo:</strong> Destruir os OVNIs e coletar vidas extras!
+            <strong>Objetivo:</strong> Destruir os Inimigos e coletar vidas extras!
         </div>
-        <div class="controle-audio">
-            <strong>Áudio:</strong> Música "mar.mp3" tocando em loop
-        </div>
+        
     </div>
 
    <script>
@@ -197,7 +195,7 @@
       // ========== CONTROLE DE ÁUDIO ==========
       var musicaFundo = new Audio();
       musicaFundo.src = 'snd/mar.mp3';
-      musicaFundo.volume = 0.3;
+      musicaFundo.volume = 0.9;
       musicaFundo.loop = true;
 
       function iniciarMusica() {
@@ -229,10 +227,9 @@
           }
       }
 
-      // ========== PREVENÇÃO DO COMPORTAMENTO PADRÃO DAS TECLAS ==========
-      // APENAS PARA TECLAS, SCROLL DO MOUSE PERMITIDO
+      
       function prevenirComportamentoPadrao(event) {
-          // Lista de teclas que queremos prevenir o comportamento padrão
+          
           var teclasBloqueadas = [
               37, // SETA_ESQUERDA
               38, // SETA_ACIMA
@@ -248,11 +245,11 @@
           }
       }
 
-      // Adicionar event listeners apenas para teclas (não para scroll)
+      
       document.addEventListener('keydown', prevenirComportamentoPadrao);
       document.addEventListener('keyup', prevenirComportamentoPadrao);
       
-      // Iniciar música quando o usuário interagir pela primeira vez
+      
       document.addEventListener('click', function() {
           if (musicaFundo.paused && jogoAtivo) {
               continuarMusica();
