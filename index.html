@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html>
+<head>
+   <title>Jogo de Nave Polvo</title>
+   <script src="animacao.js"></script>
+   <script src="teclado.js"></script>
+   <script src="colisor.js"></script>
+   <script src="fundo.js"></script>
+   <script src="polvo.js"></script> 
+   <script src="ovni.js"></script> 
+   <script src="tiro.js"></script> 
+   <script src="spritesheet.js"></script>
+   <script src="explosao.js"></script>
+   <script src="painel.js"></script>
+   <script src="extra.js"></script>
+   
+   <style>
+    body {
+        background: #d6ccae;
+        margin: 0;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        font-family: Arial, Helvetica, sans-serif;
+        /* REMOVIDO: overflow: hidden; */
+    }
+
+    
+    #canvas_animacao {
+        border: 6px solid #1fa2ca;
+        border-radius: 8px;
+        background: black;
+        display: block;
+        margin: 0 auto 20px auto;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    }
+
+ 
+    .controles {
+        color: #1fa2ca;
+        text-align: center;
+        font-family: Tahoma, Geneva, Verdana, sans-serif;
+        font-size: 14px;
+        background: #ffff;
+        padding: 15px;
+        border-radius: 8px;
+        border: 2px solid #1fa2ca;
+        max-width: 500px;
+        margin-top: 20px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .botoes-game-over {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin-top: 20px;
+        z-index: 1000;
+        position: relative;
+    }
+
+    #link_jogar, #postar_pontuacao {
+        display: none;
+        color: white;
+        background: #1fa2ca;
+        border: 2px solid white;
+        font-size: 18px;
+        font-family: Verdana, Geneva, Tahoma, sans-serif;
+        text-decoration: none;
+        padding: 12px 25px;
+        border-radius: 8px;
+        margin: 10px;
+        text-align: center;
+        transition: all 0.3s;
+        z-index: 1001;
+        min-width: 200px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    #link_jogar:hover, #postar_pontuacao:hover {
+        background: #167a9c;
+        transform: scale(1.05);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    .erro {
+        color: red;
+        background: #ffe6e6;
+        border: 2px solid red;
+        padding: 15px;
+        border-radius: 8px;
+        margin: 10px;
+        text-align: center;
+        max-width: 500px;
+        display: none;
+        font-family: Arial, sans-serif;
+    }
+
+    .loading-container {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        text-align: center;
+        color: white;
+        z-index: 100;
+    }
+
+    .game-over-container {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        z-index: 999;
+    }
+
+    .titulo-jogo {
+        color: #1fa2ca;
+        font-size: 36px;
+        font-weight: bold;
+        margin-bottom: 20px;
+        text-align: center;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        font-family: 'Arial Black', Gadget, sans-serif;
+    }
+
+    .instrucoes {
+        background: rgba(255, 255, 255, 0.9);
+        padding: 15px;
+        border-radius: 8px;
+        margin-top: 15px;
+        border-left: 4px solid #1fa2ca;
+        font-size: 13px;
+    }
+
+    .controle-audio {
+        margin-top: 10px;
+        padding: 10px;
+        background: rgba(31, 162, 202, 0.1);
+        border-radius: 5px;
+        font-size: 12px;
+    }
+   </style>
+</head>
+
+<body>
+    <h1 class="titulo-jogo">Jogo do Polvo Espacial</h1>
+    
+    <div style="position: relative;">
+        <canvas id="canvas_animacao" width="500" height="500"></canvas>
+        
+        <div id="gameOverScreen" class="game-over-container" style="display: none;">
+            <!-- A tela de Game Over será mostrada aqui via JavaScript -->
+        </div>
+    </div>
+    
+    <div id="mensagem_erro" class="erro"></div>
+    
+    <div class="botoes-game-over">
+        <a id="link_jogar" href="javascript: iniciarJogo()">Jogar Novamente</a>
+        <a id="postar_pontuacao" href="javascript: postarPontuacao()">Compartilhar Pontuação</a>
+    </div>
+    
+    <div class="controles">
+        <strong>Controles do Jogo:</strong>
+        <div class="instrucoes">
+            <strong>Setas:</strong> Mover o polvo<br>
+            <strong>Espaço:</strong> Atirar (3 tiros simultâneos)<br>
+            <strong>Enter:</strong> Pausar/Continuar jogo<br>
+            <strong>Objetivo:</strong> Destruir os OVNIs e coletar vidas extras!
+        </div>
+        <div class="controle-audio">
+            <strong>Áudio:</strong> Música "mar.mp3" tocando em loop
+        </div>
+    </div>
+
+   <script>
+      
+      var canvas = document.getElementById('canvas_animacao');
+      var context = canvas.getContext('2d');
+      var gameOverScreen = document.getElementById('gameOverScreen');
+
+      
+      var imagens, animacao, teclado, colisor, nave, criadorInimigos, painel, criadorVidasExtras;
+      var espaco, ladoE, ladoD, conchas;
+      var totalImagens = 0, carregadas = 0;
+      var jogoAtivo = false;
+      
+      // ========== CONTROLE DE ÁUDIO ==========
+      var musicaFundo = new Audio();
+      musicaFundo.src = 'snd/mar.mp3';
+      musicaFundo.volume = 0.3;
+      musicaFundo.loop = true;
+
+      function iniciarMusica() {
+          try {
+              if (musicaFundo.readyState >= 2) {
+                  musicaFundo.play().catch(function(e) {
+                      console.log("Autoplay bloqueado, aguardando interação do usuário:", e);
+                  });
+              }
+          } catch (error) {
+              console.log("Erro ao iniciar música:", error);
+          }
+      }
+
+      function pararMusica() {
+          musicaFundo.pause();
+          musicaFundo.currentTime = 0;
+      }
+
+      function pausarMusica() {
+          musicaFundo.pause();
+      }
+
+      function continuarMusica() {
+          if (musicaFundo.paused) {
+              musicaFundo.play().catch(function(e) {
+                  console.log("Não foi possível continuar música:", e);
+              });
+          }
+      }
+
+      // ========== PREVENÇÃO DO COMPORTAMENTO PADRÃO DAS TECLAS ==========
+      // APENAS PARA TECLAS, SCROLL DO MOUSE PERMITIDO
+      function prevenirComportamentoPadrao(event) {
+          // Lista de teclas que queremos prevenir o comportamento padrão
+          var teclasBloqueadas = [
+              37, // SETA_ESQUERDA
+              38, // SETA_ACIMA
+              39, // SETA_DIREITA
+              40, // SETA_ABAIXO
+              32, // ESPACO
+              13  // ENTER
+          ];
+          
+          if (teclasBloqueadas.includes(event.keyCode)) {
+              event.preventDefault();
+              event.stopPropagation();
+          }
+      }
+
+      // Adicionar event listeners apenas para teclas (não para scroll)
+      document.addEventListener('keydown', prevenirComportamentoPadrao);
+      document.addEventListener('keyup', prevenirComportamentoPadrao);
+      
+      // Iniciar música quando o usuário interagir pela primeira vez
+      document.addEventListener('click', function() {
+          if (musicaFundo.paused && jogoAtivo) {
+              continuarMusica();
+          }
+      }, { once: true });
+    
+      function mostrarErro(mensagem) {
+         var elementoErro = document.getElementById('mensagem_erro');
+         elementoErro.innerHTML = '<strong>Erro:</strong> ' + mensagem + '<br>Verifique se todos os arquivos JavaScript estão presentes.';
+         elementoErro.style.display = 'block';
+         console.error(mensagem);
+      }
+
+      function verificarClasses() {
+         var classesNecessarias = ['Animacao', 'Teclado', 'Colisor', 'Fundo', 'Polvo', 'Ovni', 'Tiro', 'Spritesheet', 'Explosao', 'Painel', 'VidaExtra'];
+         var classesFaltantes = [];
+         
+         for (var i = 0; i < classesNecessarias.length; i++) {
+            if (typeof window[classesNecessarias[i]] === 'undefined') {
+               classesFaltantes.push(classesNecessarias[i]);
+            }
+         }
+         
+         if (classesFaltantes.length > 0) {
+            mostrarErro('Classes não carregadas: ' + classesFaltantes.join(', '));
+            return false;
+         }
+         return true;
+      }
+
+      carregarImagens();
+      
+      function carregarImagens() {
+         console.log("Iniciando carregamento...");
+
+         
+         imagens = {
+            espaco: 'agua.png', 
+            ladoe: 'ladoe.png', 
+            ladod: 'ladod.png', 
+            conchas: 'conshas.png', 
+            nave: 'Walk.png', 
+            ovni: 'lulas.png',
+            explosao: 'explosao.png',
+            extra: 'extra.png'
+         };
+         
+       
+         for (var i in imagens) {
+            var img = new Image();
+            img.src = 'img/' + imagens[i];
+            
+            img.onload = function() {
+               carregadas++;
+               console.log("Imagem carregada:", this.src);
+               atualizarLoading();
+            };
+            img.onerror = function() {
+               carregadas++;
+               console.error("Erro ao carregar:", this.src);
+               atualizarLoading();
+            }; 
+            
+            totalImagens++;
+            imagens[i] = img;
+         }
+      }
+      
+      function atualizarLoading() {
+         context.clearRect(0, 0, canvas.width, canvas.height);
+         
+         
+         context.fillStyle = 'black';
+         context.fillRect(0, 0, canvas.width, canvas.height);
+         
+         
+         context.fillStyle = 'white';
+         context.font = 'bold 30px Arial, sans-serif';
+         context.textAlign = 'center';
+         context.fillText("Carregando...", canvas.width/2, 180);
+         
+         
+         var barraWidth = 300;
+         var barraHeight = 30;
+         var barraX = (canvas.width - barraWidth) / 2;
+         var barraY = 220;
+         
+         // Fundo da barra
+         context.fillStyle = '#333';
+         context.fillRect(barraX, barraY, barraWidth, barraHeight);
+         
+         // Progresso da barra
+         var progresso = carregadas / totalImagens * barraWidth;
+         context.fillStyle = '#1fa2ca';
+         context.fillRect(barraX, barraY, progresso, barraHeight);
+         
+         // Borda da barra
+         context.strokeStyle = 'white';
+         context.lineWidth = 2;
+         context.strokeRect(barraX, barraY, barraWidth, barraHeight);
+         
+         // Texto de progresso
+         context.fillStyle = 'white';
+         context.font = '16px Arial, sans-serif';
+         context.fillText(carregadas + " / " + totalImagens + " imagens carregadas", canvas.width/2, 270);
+         
+         if (carregadas == totalImagens) {
+            console.log("Todas imagens carregadas!");
+            setTimeout(iniciarObjetos, 800);
+         }
+      }
+      
+      function iniciarObjetos() {
+         console.log("Iniciando objetos do jogo...");
+         
+         // Verificar se todas as classes foram carregadas
+         if (!verificarClasses()) {
+            return;
+         }
+         
+         try {
+            // Carregar música de fundo "mar.mp3"
+            musicaFundo.load();
+            console.log("Música 'mar.mp3' carregada");
+            
+            animacao = new Animacao(context);
+            teclado = new Teclado(document);
+            colisor = new Colisor();
+            
+           
+            espaco = new Fundo(context, imagens.espaco);
+            ladoE = new Fundo(context, imagens.ladoe, 'esquerda');
+            ladoD = new Fundo(context, imagens.ladod, 'direita');
+            conchas = new Fundo(context, imagens.conchas);
+            
+          
+            nave = new Polvo(context, teclado, imagens.nave, animacao, imagens.explosao, colisor);
+            painel = new Painel(context, nave);
+            
+            
+            animacao.novoSprite(espaco);
+            animacao.novoSprite(ladoE);
+            animacao.novoSprite(ladoD);
+            animacao.novoSprite(conchas);
+            animacao.novoSprite(painel);
+            animacao.novoSprite(nave);
+            
+            colisor.novoSprite(nave);
+            animacao.novoProcessamento(colisor);
+            
+            configuracoesIniciais();
+            mostrarLinkJogar();
+            
+            console.log("Jogo inicializado com sucesso!");
+            
+         } catch (error) {
+            console.error("Erro ao inicializar:", error);
+            mostrarErro(error.message);
+         }
+      }
+      
+      function configuracoesIniciais() {
+         
+         espaco.velocidade = 60;
+         if (ladoE) ladoE.velocidade = 180;
+         if (ladoD) ladoD.velocidade = 180;
+         if (conchas) conchas.velocidade = 200;
+         
+         
+         nave.posicionar();
+         nave.velocidade = 5;
+         nave.vidasExtras = 3;
+         nave.podeColidir = true;
+         nave.ativo = true;
+         
+         
+         nave.margemEsquerda = imagens.ladoe ? imagens.ladoe.width : 50;
+         nave.margemDireita = imagens.ladod ? imagens.ladod.width : 50;
+         
+       
+         criacaoInimigos();
+         criacaoVidasExtras();
+         
+       
+         nave.acabaramVidas = function() {
+            console.log("Game Over - Chamando função acabaramVidas");
+            gameOver();
+         }
+         
+        
+         colisor.aoColidir = function(o1, o2) {
+            if ( (o1 instanceof Tiro && o2 instanceof Ovni) ||
+                 (o1 instanceof Ovni && o2 instanceof Tiro) ) {
+               painel.pontuacao += 10;
+               console.log("Pontuação:", painel.pontuacao);
+            }
+         }
+         
+       
+         teclado.disparar(ENTER, pausarJogo);
+         teclado.disparar(ESPACO, function() {
+            if (nave.ativo) {
+               nave.atirar();
+            }
+         });
+         
+         console.log("Configurações aplicadas - Vidas extras ativas!");
+      }
+      
+      function criacaoInimigos() {
+         criadorInimigos = {
+            ultimoOvni: Date.now(),
+            
+            processar: function() {
+               if (!jogoAtivo) return;
+               
+               var agora = Date.now();
+               var decorrido = agora - this.ultimoOvni;
+               
+               if (decorrido > 1500) {
+                  novoOvni();
+                  this.ultimoOvni = agora;
+               }
+            }
+         };
+         
+         animacao.novoProcessamento(criadorInimigos);
+      }
+      
+      function criacaoVidasExtras() {
+         criadorVidasExtras = {
+            ultimaVida: Date.now(),
+            intervalo: 30000, // 30 segundos
+            
+            processar: function() {
+               if (!jogoAtivo) return;
+               
+               var agora = Date.now();
+               var decorrido = agora - this.ultimaVida;
+               
+               if (decorrido > this.intervalo) {
+                  novaVidaExtra();
+                  this.ultimaVida = agora;
+                  console.log("VIDA EXTRA DISPONÍVEL!");
+               }
+            }
+         };
+         
+         animacao.novoProcessamento(criadorVidasExtras);
+      }
+      
+      function novoOvni() {
+         var imgOvni = imagens.ovni;
+         var ovni = new Ovni(context, imgOvni, imagens.explosao);
+         
+         ovni.animacao = animacao;
+         ovni.colisor = colisor;
+         ovni.velocidade = 2 + Math.random() * 2;
+         
+        
+         var areaJogavelInicio = nave.margemEsquerda;
+         var areaJogavelFim = canvas.width - nave.margemDireita - 48;
+         
+         ovni.x = areaJogavelInicio + Math.random() * (areaJogavelFim - areaJogavelInicio);
+         ovni.y = -48;
+         
+         animacao.novoSprite(ovni);
+         colisor.novoSprite(ovni);
+      }
+      
+      function novaVidaExtra() {
+         var imgExtra = imagens.extra;
+         var vida = new VidaExtra(context, imgExtra);
+         
+         vida.animacao = animacao;
+         vida.colisor = colisor;
+         vida.velocidade = 2;
+         
+         
+         var areaJogavelInicio = nave.margemEsquerda;
+         var areaJogavelFim = canvas.width - nave.margemDireita - 48;
+         
+         vida.x = areaJogavelInicio + Math.random() * (areaJogavelFim - areaJogavelInicio);
+         vida.y = -48;
+         
+         animacao.novoSprite(vida);
+         colisor.novoSprite(vida);
+      }
+      
+      function pausarJogo() {
+         if (!jogoAtivo) return;
+         
+         if (animacao.ligado) {
+            animacao.desligar();
+            pausarMusica();
+            context.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            context.fillRect(0, 0, canvas.width, canvas.height);
+            context.fillStyle = 'white';
+            context.font = 'bold 40px Arial, sans-serif';
+            context.textAlign = 'center';
+            context.fillText("JOGO PAUSADO", canvas.width/2, canvas.height/2);
+            context.font = '20px Arial, sans-serif';
+            context.fillText("Pressione ENTER para continuar", canvas.width/2, canvas.height/2 + 50);
+         } else {
+            animacao.ligar();
+            continuarMusica();
+         }
+      }
+      
+      function mostrarLinkJogar() {
+         document.getElementById('link_jogar').style.display = 'block';
+         console.log("Link Jogar disponível");
+      }
+      
+      function iniciarJogo() {
+         console.log("Iniciando jogo...");
+         
+         // Esconder mensagens de erro e tela de game over
+         document.getElementById('mensagem_erro').style.display = 'none';
+         gameOverScreen.style.display = 'none';
+         
+         // Esconder botões
+         document.getElementById('link_jogar').style.display = 'none';
+         document.getElementById('postar_pontuacao').style.display = 'none';
+         
+         // Iniciar música de fundo
+         iniciarMusica();
+         
+         // Resetar nave
+         if (nave) {
+            nave.vidasExtras = 3;
+            nave.podeColidir = true;
+            nave.ativo = true;
+            nave.posicionar();
+            
+            // Re-adicionar a nave se foi removida
+            var naveExiste = false;
+            for (var i = 0; i < animacao.sprites.length; i++) {
+               if (animacao.sprites[i] === nave) {
+                  naveExiste = true;
+                  break;
+               }
+            }
+            
+            if (!naveExiste) {
+               animacao.novoSprite(nave);
+               colisor.novoSprite(nave);
+            }
+         }
+         
+         // Resetar pontuação
+         painel.pontuacao = 0;
+         
+         // Limpar inimigos e tiros
+         animacao.sprites = animacao.sprites.filter(function(sprite) {
+            return sprite === espaco || sprite === ladoE || sprite === ladoD || 
+                   sprite === conchas || sprite === painel || sprite === nave;
+         });
+         
+         colisor.sprites = colisor.sprites.filter(function(sprite) {
+            return sprite === nave;
+         });
+         
+         // Limpar arrays de exclusão
+         animacao.spritesExcluir = [];
+         colisor.spritesExcluir = [];
+         
+         jogoAtivo = true;
+         
+         // Iniciar animação
+         animacao.ligar();
+         
+         console.log("Jogo reiniciado com sucesso!");
+      }
+      
+      function gameOver() {
+         console.log("Chamando gameOver()");
+         
+         jogoAtivo = false;
+         
+         // Parar a animação completamente
+         animacao.desligar();
+         
+         // Parar música de fundo
+         pararMusica();
+         
+         // Mostrar tela de Game Over
+         gameOverScreen.style.display = 'flex';
+         gameOverScreen.innerHTML = `
+            <div style="background: rgba(0, 0, 0, 0.9); padding: 40px; border-radius: 15px; border: 3px solid red; text-align: center; max-width: 80%;">
+               <div style="color: red; font-size: 50px; font-weight: bold; margin-bottom: 20px; text-shadow: 0 0 10px rgba(255, 0, 0, 0.5);">
+                  GAME OVER
+               </div>
+               <div style="color: white; font-size: 28px; margin-bottom: 30px;">
+                  Pontuação Final: <span style="color: yellow;">${painel.pontuacao}</span>
+               </div>
+               <div style="color: #1fa2ca; font-size: 18px; margin-bottom: 30px;">
+                  Clique em "Jogar Novamente" para tentar outra vez!
+               </div>
+            </div>
+         `;
+         
+         // Mostrar botões
+         document.getElementById('link_jogar').style.display = 'block';
+         document.getElementById('postar_pontuacao').style.display = 'block';
+         
+         console.log("Game Over exibido na tela");
+      }
+      
+      function postarPontuacao() {
+         var mensagem = "Minha pontuação no Jogo do Polvo Espacial: " + painel.pontuacao + " pontos!\n\n";
+         mensagem += "Conseguiu chegar até " + painel.pontuacao + " pontos destruindo OVNIs!\n";
+         mensagem += "Tente superar minha pontuação!";
+         
+         if (navigator.share) {
+            // Compartilhamento nativo em dispositivos móveis
+            navigator.share({
+               title: 'Jogo do Polvo Espacial',
+               text: mensagem,
+               url: window.location.href
+            }).catch(console.error);
+         } else {
+            // Fallback para desktop
+            alert(mensagem + "\n\nCopie esta mensagem para compartilhar com seus amigos!");
+         }
+      }
+   </script>
+</body>
+</html>
